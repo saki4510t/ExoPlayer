@@ -99,6 +99,8 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
     DEFAULT_COOKIE_MANAGER.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
   }
 
+  private static final float SPEED_FACTOR = 1.0f;
+
   private Handler mainHandler;
   private Timeline.Window window;
   private EventLogger eventLogger;
@@ -269,6 +271,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
       player.setAudioDebugListener(eventLogger);
       player.setVideoDebugListener(eventLogger);
       player.setId3Output(eventLogger);
+      player.setSpeedFactor(SPEED_FACTOR);
 
       simpleExoPlayerView.setPlayer(player);
       if (isTimelineStatic) {
