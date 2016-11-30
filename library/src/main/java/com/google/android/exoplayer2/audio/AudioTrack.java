@@ -1155,6 +1155,7 @@ public final class AudioTrack {
     private long stopTimestampUs;
     private long stopPlaybackHeadPosition;
     private long endPlaybackHeadPosition;
+    private float playbackSpeed = 1.0f;
 
     /**
      * Reconfigures the audio track utility helper to use the specified {@code audioTrack}.
@@ -1173,6 +1174,7 @@ public final class AudioTrack {
       passthroughWorkaroundPauseOffset = 0;
       if (audioTrack != null) {
         sampleRate = audioTrack.getSampleRate();
+        audioTrack.setPlaybackRate((int) (sampleRate * playbackSpeed));
       }
     }
 
@@ -1309,9 +1311,12 @@ public final class AudioTrack {
      * @return The speed factor used by the underlying {@link android.media.AudioTrack}.
      */
     public float getPlaybackSpeed() {
-      return 1.0f;
+      return playbackSpeed;
     }
 
+    public void setPlaybackSpeed(float playbackSpeed) {
+      this.playbackSpeed = playbackSpeed;
+    }
   }
 
   @TargetApi(19)
@@ -1400,6 +1405,11 @@ public final class AudioTrack {
       }
     }
 
+  }
+
+  public void setPlaybackSpeed(float speed) {
+    audioTrackUtil.setPlaybackSpeed(speed);
+    reset();
   }
 
 }

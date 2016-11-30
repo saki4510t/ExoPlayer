@@ -445,4 +445,13 @@ public interface ExoPlayer {
    */
   int getBufferedPercentage();
 
+  /**
+   * @return the speed factor: speed_of_playback / speed_of_real_clock
+   */
+  float getSpeedFactor();
+
+  /**
+   * @param factor the speed factor: speed_of_playback / speed_of_real_clock
+   */
+  void setSpeedFactor(float factor);
 }

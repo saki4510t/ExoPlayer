@@ -67,4 +67,8 @@ public class LibflacAudioRenderer extends SimpleDecoderAudioRenderer {
     return new FlacDecoder(NUM_BUFFERS, NUM_BUFFERS, format.initializationData);
   }
 
+  @Override
+  public void setSpeedFactor(final float factor) {
+    throw new UnsupportedOperationException();
+  }
 }

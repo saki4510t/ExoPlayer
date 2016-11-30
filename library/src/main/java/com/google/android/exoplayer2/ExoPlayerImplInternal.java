@@ -15,6 +15,8 @@
  */
 package com.google.android.exoplayer2;
 
+import android.media.PlaybackParams;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -1446,6 +1448,31 @@ import java.io.IOException;
       }
     }
 
+  }
+
+  public float getSpeedFactor() {
+    return standaloneMediaClock.getSpeedFactor();
+  }
+
+  public void setSpeedFactor(float factor) {
+    if (Build.VERSION.SDK_INT >= 23) {
+      PlaybackParams params = new PlaybackParams();
+      params.setSpeed(factor);
+      ExoPlayerMessage[] messages = new ExoPlayerMessage[renderers.length];
+      for (int i = 0; i < renderers.length; i++) {
+        messages[i] = new ExoPlayerMessage(renderers[i], C.MSG_SET_PLAYBACK_PARAMS, params);
+      }
+      try {
+        sendMessagesInternal(messages);
+      } catch (ExoPlaybackException e) {
+        e.printStackTrace();
+      }
+    } else {
+      standaloneMediaClock.setSpeedFactor(factor);
+      if (rendererMediaClock != null) {
+        rendererMediaClock.setSpeedFactor(factor);
+      }
+    }
   }
 
   private static final class SeekPosition {

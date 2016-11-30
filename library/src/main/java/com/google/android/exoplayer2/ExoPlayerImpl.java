@@ -287,6 +287,16 @@ import java.util.concurrent.CopyOnWriteArraySet;
   }
 
   @Override
+  public float getSpeedFactor() {
+    return internalPlayer.getSpeedFactor();
+  }
+
+  @Override
+  public void setSpeedFactor(final float factor) {
+    internalPlayer.setSpeedFactor(factor);
+  }
+
+  @Override
   public TrackSelectionArray getCurrentTrackSelections() {
     return trackSelections;
   }

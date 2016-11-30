@@ -616,6 +616,16 @@ public class SimpleExoPlayer implements ExoPlayer {
     return player.getCurrentManifest();
   }
 
+  @Override
+  public float getSpeedFactor() {
+    return player.getSpeedFactor();
+  }
+
+  @Override
+  public void setSpeedFactor(final float factor) {
+    player.setSpeedFactor(factor);
+  }
+
   // Renderer building.
 
   private void buildRenderers(Context context, Handler mainHandler,

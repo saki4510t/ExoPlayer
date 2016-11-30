@@ -84,4 +84,8 @@ public final class LibopusAudioRenderer extends SimpleDecoderAudioRenderer {
         format.initializationData, mediaCrypto);
   }
 
+  @Override
+  public void setSpeedFactor(final float factor) {
+    throw new UnsupportedOperationException();
+  }
 }

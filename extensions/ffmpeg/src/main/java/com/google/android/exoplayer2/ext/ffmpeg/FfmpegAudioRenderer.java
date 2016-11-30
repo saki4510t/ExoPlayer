@@ -85,4 +85,8 @@ public final class FfmpegAudioRenderer extends SimpleDecoderAudioRenderer {
         Format.NO_VALUE, channelCount, sampleRate, C.ENCODING_PCM_16BIT, null, null, 0, null);
   }
 
+  @Override
+  public void setSpeedFactor(final float factor) {
+    throw new UnsupportedOperationException();
+  }
 }

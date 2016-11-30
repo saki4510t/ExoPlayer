@@ -37,11 +37,26 @@ public final class StandaloneMediaClock implements MediaClock {
   private long deltaUs;
 
   /**
+   * The media time(ms) on last sync.
+   */
+  private double lastMediaTimeMs;
+
+  /**
+   * The {@link SystemClock#elapsedRealtime()} (ms) on last sync.
+   */
+  private long lastRealTimeMs;
+  /**
+    * playback speed factor
+    */
+  private float speedFactor = 1.0f;
+
+  /**
    * Starts the clock. Does nothing if the clock is already started.
    */
   public void start() {
     if (!started) {
       started = true;
+      lastRealTimeMs = SystemClock.elapsedRealtime();
       deltaUs = elapsedRealtimeMinus(positionUs);
     }
   }
@@ -69,8 +84,28 @@ public final class StandaloneMediaClock implements MediaClock {
     return started ? elapsedRealtimeMinus(deltaUs) : positionUs;
   }
 
-  private long elapsedRealtimeMinus(long toSubtractUs) {
-    return SystemClock.elapsedRealtime() * 1000 - toSubtractUs;
+  /**
+   * return elapsedRealtime - toSubtractUs as micro secs
+   * @param toSubtractUs
+   * @return [us]
+  */
+  private long elapsedRealtimeMinus(final long toSubtractUs) {
+    updateMediaTime();
+    return (long)(lastMediaTimeMs * 1000) - toSubtractUs;
   }
 
+  public float getSpeedFactor() {
+    return speedFactor;
+  }
+
+  public void setSpeedFactor(final float factor) {
+    this.speedFactor = factor;
+  }
+
+  private void updateMediaTime() {
+    if (!started) return;
+    final long realTimeMs = SystemClock.elapsedRealtime();
+    lastMediaTimeMs = lastMediaTimeMs + (realTimeMs - lastRealTimeMs) * speedFactor;
+    lastRealTimeMs = realTimeMs;
+  }
 }
