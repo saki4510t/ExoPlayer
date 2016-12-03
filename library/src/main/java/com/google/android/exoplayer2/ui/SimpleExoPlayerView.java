@@ -194,17 +194,19 @@ public final class SimpleExoPlayerView extends FrameLayout {
     int playerLayoutId = R.layout.exo_simple_player_view;
     boolean useArtwork = true;
     boolean useController = true;
+    boolean useSpeedFactor = true;
     int surfaceType = SURFACE_TYPE_SURFACE_VIEW;
     int resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT;
     int controllerShowTimeoutMs = PlaybackControlView.DEFAULT_SHOW_TIMEOUT_MS;
     if (attrs != null) {
-      TypedArray a = context.getTheme().obtainStyledAttributes(attrs,
+      final TypedArray a = context.getTheme().obtainStyledAttributes(attrs,
           R.styleable.SimpleExoPlayerView, 0, 0);
       try {
         playerLayoutId = a.getResourceId(R.styleable.SimpleExoPlayerView_player_layout_id,
             playerLayoutId);
         useArtwork = a.getBoolean(R.styleable.SimpleExoPlayerView_use_artwork, useArtwork);
         useController = a.getBoolean(R.styleable.SimpleExoPlayerView_use_controller, useController);
+        useSpeedFactor = a.getBoolean(R.styleable.SimpleExoPlayerView_use_speed_factor, useSpeedFactor);
         surfaceType = a.getInt(R.styleable.SimpleExoPlayerView_surface_type, surfaceType);
         resizeMode = a.getInt(R.styleable.SimpleExoPlayerView_resize_mode, resizeMode);
         controllerShowTimeoutMs = a.getInt(R.styleable.SimpleExoPlayerView_show_timeout,
@@ -259,6 +261,7 @@ public final class SimpleExoPlayerView extends FrameLayout {
       // calls to set them.
       this.controller = new PlaybackControlView(context, attrs);
       controller.setLayoutParams(controllerPlaceholder.getLayoutParams());
+      controller.setUseSpeedFactor(useSpeedFactor);
       ViewGroup parent = ((ViewGroup) controllerPlaceholder.getParent());
       int controllerIndex = parent.indexOfChild(controllerPlaceholder);
       parent.removeView(controllerPlaceholder);

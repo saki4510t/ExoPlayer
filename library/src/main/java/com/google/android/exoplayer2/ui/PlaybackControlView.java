@@ -173,6 +173,8 @@ public class PlaybackControlView extends FrameLayout {
   private final TextView durationView;
   private final TextView positionView;
   private final SeekBar progressBar;
+  private final TextView speedFactorView;
+  private final SeekBar speedFactorSeekBar;
   private final StringBuilder formatBuilder;
   private final Formatter formatter;
   private final Timeline.Window currentWindow;
@@ -182,6 +184,7 @@ public class PlaybackControlView extends FrameLayout {
 
   private boolean isAttachedToWindow;
   private boolean dragging;
+  private boolean useSpeedFactor;
   private int rewindMs;
   private int fastForwardMs;
   private int showTimeoutMs;
@@ -213,6 +216,7 @@ public class PlaybackControlView extends FrameLayout {
     super(context, attrs, defStyleAttr);
 
     int controllerLayoutId = R.layout.exo_playback_control_view;
+    useSpeedFactor = true;
     rewindMs = DEFAULT_REWIND_MS;
     fastForwardMs = DEFAULT_FAST_FORWARD_MS;
     showTimeoutMs = DEFAULT_SHOW_TIMEOUT_MS;
@@ -224,6 +228,7 @@ public class PlaybackControlView extends FrameLayout {
         fastForwardMs = a.getInt(R.styleable.PlaybackControlView_fastforward_increment,
             fastForwardMs);
         showTimeoutMs = a.getInt(R.styleable.PlaybackControlView_show_timeout, showTimeoutMs);
+        useSpeedFactor = a.getBoolean(R.styleable.SimpleExoPlayerView_use_speed_factor, useSpeedFactor);
         controllerLayoutId = a.getResourceId(R.styleable.PlaybackControlView_controller_layout_id,
             controllerLayoutId);
       } finally {
@@ -242,6 +247,17 @@ public class PlaybackControlView extends FrameLayout {
     if (progressBar != null) {
       progressBar.setOnSeekBarChangeListener(componentListener);
       progressBar.setMax(PROGRESS_BAR_MAX);
+    }
+    speedFactorSeekBar = (SeekBar) findViewById(R.id.exo_speed_factor);
+    if (speedFactorSeekBar != null) {
+      speedFactorSeekBar.setOnSeekBarChangeListener(componentListener);
+      speedFactorSeekBar.setProgress(75);
+      speedFactorSeekBar.setVisibility(useSpeedFactor ? VISIBLE : GONE);
+    }
+    speedFactorView = (TextView) findViewById(R.id.exo_speed_factor_text);
+    if (speedFactorView != null) {
+      speedFactorView.setVisibility(useSpeedFactor ? VISIBLE : GONE);
+      speedFactorView.setText(stringForSpeedFactor(75));
     }
     playButton = findViewById(R.id.exo_play);
     if (playButton != null) {
@@ -346,6 +362,27 @@ public class PlaybackControlView extends FrameLayout {
    */
   public void setShowTimeoutMs(int showTimeoutMs) {
     this.showTimeoutMs = showTimeoutMs;
+  }
+
+  public boolean getUseSpeedFactor() {
+    return useSpeedFactor;
+  }
+
+  public void setUseSpeedFactor(final boolean use) {
+    if (useSpeedFactor != use) {
+      useSpeedFactor = use;
+      final boolean playing = player != null && player.getPlayWhenReady();
+      if (speedFactorSeekBar != null) {
+        if (use) {
+          speedFactorSeekBar.setProgress(75);
+        }
+        speedFactorSeekBar.setVisibility(playing && use ? VISIBLE : GONE);
+      }
+      if (speedFactorView != null) {
+        speedFactorView.setVisibility(playing && use && (speedFactorSeekBar != null) ? VISIBLE : GONE);
+        speedFactorView.setText(stringForSpeedFactor(speedFactorSeekBar != null ? speedFactorSeekBar.getProgress() : 75));
+      }
+    }
   }
 
   /**
@@ -512,6 +549,11 @@ public class PlaybackControlView extends FrameLayout {
         : formatter.format("%02d:%02d", minutes, seconds).toString();
   }
 
+  private String stringForSpeedFactor(final int progress) {
+    return String.format(Locale.US, "%4.3f",
+      ((float)Math.pow(2.0, progress / 25.0f) / 8.0f));
+  }
+
   private int progressBarValue(long position) {
     long duration = player == null ? C.TIME_UNSET : player.getDuration();
     return duration == C.TIME_UNSET || duration == 0 ? 0
@@ -628,29 +670,39 @@ public class PlaybackControlView extends FrameLayout {
       SeekBar.OnSeekBarChangeListener, OnClickListener {
 
     @Override
-    public void onStartTrackingTouch(SeekBar seekBar) {
+    public void onStartTrackingTouch(final SeekBar seekBar) {
       removeCallbacks(hideAction);
       dragging = true;
     }
 
     @Override
-    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-      if (fromUser && positionView != null) {
-        positionView.setText(stringForTime(positionValue(progress)));
+    public void onProgressChanged(final SeekBar seekBar, final int progress, final boolean fromUser) {
+      if (fromUser) {
+        final int id = seekBar.getId();
+        if ((id == R.id.exo_progress) && (positionView != null)) {
+          positionView.setText(stringForTime(positionValue(progress)));
+        } else if ((id == R.id.exo_speed_factor) && (speedFactorView != null)) {
+          speedFactorView.setText(stringForSpeedFactor(progress));
+        }
       }
     }
 
     @Override
-    public void onStopTrackingTouch(SeekBar seekBar) {
+    public void onStopTrackingTouch(final SeekBar seekBar) {
       dragging = false;
       if (player != null) {
-        player.seekTo(positionValue(seekBar.getProgress()));
+        final int id = seekBar.getId();
+        if (id == R.id.exo_progress) {
+          player.seekTo(positionValue(seekBar.getProgress()));
+        } else {
+          player.setSpeedFactor(((float)Math.pow(2.0, seekBar.getProgress() / 25.0f) / 8.0f));
+        }
       }
       hideAfterTimeout();
     }
 
     @Override
-    public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+    public void onPlayerStateChanged(final boolean playWhenReady, final int playbackState) {
       updatePlayPauseButton();
       updateProgress();
     }

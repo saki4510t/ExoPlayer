@@ -32,10 +32,12 @@
   <attr name="fastforward_increment" format="integer"/>
   <attr name="player_layout_id" format="reference"/>
   <attr name="controller_layout_id" format="reference"/>
+  <attr name="use_speed_factor" format="boolean"/>
 
   <declare-styleable name="SimpleExoPlayerView">
     <attr name="use_artwork" format="boolean"/>
     <attr name="use_controller" format="boolean"/>
+    <attr name="use_speed_factor"/>
     <attr name="surface_type"/>
     <attr name="show_timeout"/>
     <attr name="rewind_increment"/>
@@ -54,6 +56,7 @@
     <attr name="rewind_increment"/>
     <attr name="fastforward_increment"/>
     <attr name="controller_layout_id"/>
+    <attr name="use_speed_factor"/>
   </declare-styleable>
 
 </resources>

@@ -29,4 +29,6 @@
   <item name="exo_duration" type="id"/>
   <item name="exo_position" type="id"/>
   <item name="exo_progress" type="id"/>
+  <item name="exo_speed_factor_text" type="id"/>
+  <item name="exo_speed_factor" type="id"/>
 </resources>

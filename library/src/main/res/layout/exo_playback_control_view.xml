@@ -24,6 +24,29 @@
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <TextView android:id="@id/exo_speed_factor_text"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_gravity="center_horizontal"
+      android:textSize="14sp"
+      android:textStyle="bold"
+      android:paddingTop="4dp"
+      android:paddingStart="4dp"
+      android:paddingEnd="4dp"
+      android:textColor="#FFBEBEBE"/>
+
+    <SeekBar android:id="@id/exo_speed_factor"
+      android:layout_width="0dp"
+      android:layout_weight="1"
+      android:layout_height="32dp"
+      style="?android:attr/progressBarStyleHorizontal"/>
+  </LinearLayout>
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:gravity="center"
     android:paddingTop="4dp"
     android:orientation="horizontal">
