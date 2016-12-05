@@ -218,6 +218,7 @@ public final class SimpleExoPlayerView extends FrameLayout {
 
     LayoutInflater.from(context).inflate(playerLayoutId, this);
     componentListener = new ComponentListener();
+    setDescendantFocusability(FOCUS_AFTER_DESCENDANTS);
 
     // Content frame.
     contentFrame = (AspectRatioFrameLayout) findViewById(R.id.exo_content_frame);
@@ -380,6 +381,26 @@ public final class SimpleExoPlayerView extends FrameLayout {
   }
 
   /**
+   * Called to process media key events. Any {@link KeyEvent} can be passed but only media key
+   * events will be handled. Does nothing if playback controls are disabled.
+   *
+   * @param event A key event.
+   * @return Whether the key event was handled.
+   */
+  public boolean dispatchMediaKeyEvent(KeyEvent event) {
+    return useController && controller.dispatchMediaKeyEvent(event);
+  }
+
+  /**
+   * Shows the playback controls. Does nothing if playback controls are disabled.
+   */
+  public void showController() {
+    if (useController) {
+      maybeShowController(true);
+    }
+  }
+
+  /**
    * Returns the playback controls timeout. The playback controls are automatically hidden after
    * this duration of time has elapsed without user input and with playback or buffering in
    * progress.
@@ -454,6 +475,16 @@ public final class SimpleExoPlayerView extends FrameLayout {
     return overlayFrameLayout;
   }
 
+  /**
+   * Gets the {@link SubtitleView}.
+   *
+   * @return The {@link SubtitleView}, or {@code null} if the layout has been customized and the
+   *     subtitle view is not present.
+   */
+  public SubtitleView getSubtitleView() {
+    return subtitleView;
+  }
+
   @Override
   public boolean onTouchEvent(MotionEvent ev) {
     if (!useController || player == null || ev.getActionMasked() != MotionEvent.ACTION_DOWN) {
@@ -474,11 +505,6 @@ public final class SimpleExoPlayerView extends FrameLayout {
     }
     maybeShowController(true);
     return true;
-  }
-
-  @Override
-  public boolean dispatchKeyEvent(KeyEvent event) {
-    return useController ? controller.dispatchKeyEvent(event) : super.dispatchKeyEvent(event);
   }
 
   private void maybeShowController(boolean isForced) {

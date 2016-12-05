@@ -15,6 +15,7 @@
  */
 package com.google.android.exoplayer2.upstream.cache;
 
+import android.util.Log;
 import android.util.SparseArray;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.upstream.cache.Cache.CacheException;
@@ -26,6 +27,7 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -54,6 +56,8 @@ import javax.crypto.spec.SecretKeySpec;
   private static final int VERSION = 1;
 
   private static final int FLAG_ENCRYPTED_INDEX = 1;
+
+  private static final String TAG = "CachedContentIndex";
 
   private final HashMap<String, CachedContent> keyToContent;
   private final SparseArray<String> idToKey;
@@ -224,7 +228,7 @@ import javax.crypto.spec.SecretKeySpec;
           return false;
         }
         byte[] initializationVector = new byte[16];
-        input.read(initializationVector);
+        input.readFully(initializationVector);
         IvParameterSpec ivParameterSpec = new IvParameterSpec(initializationVector);
         try {
           cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
@@ -232,19 +236,26 @@ import javax.crypto.spec.SecretKeySpec;
           throw new IllegalStateException(e);
         }
         input = new DataInputStream(new CipherInputStream(inputStream, cipher));
+      } else {
+        if (cipher != null) {
+          changed = true; // Force index to be rewritten encrypted after read.
+        }
       }
 
       int count = input.readInt();
       int hashCode = 0;
       for (int i = 0; i < count; i++) {
         CachedContent cachedContent = new CachedContent(input);
-        addNew(cachedContent);
+        add(cachedContent);
         hashCode += cachedContent.headerHashCode();
       }
       if (input.readInt() != hashCode) {
         return false;
       }
+    } catch (FileNotFoundException e) {
+      return false;
     } catch (IOException e) {
+      Log.e(TAG, "Error reading cache content index file.", e);
       return false;
     } finally {
       if (input != null) {
@@ -298,10 +309,14 @@ import javax.crypto.spec.SecretKeySpec;
     }
   }
 
-  /** Adds the given CachedContent to the index. */
-  /*package*/ void addNew(CachedContent cachedContent) {
+  private void add(CachedContent cachedContent) {
     keyToContent.put(cachedContent.key, cachedContent);
     idToKey.put(cachedContent.id, cachedContent.key);
+  }
+
+  /** Adds the given CachedContent to the index. */
+  /*package*/ void addNew(CachedContent cachedContent) {
+    add(cachedContent);
     changed = true;
   }
 

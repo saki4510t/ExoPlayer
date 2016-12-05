@@ -22,6 +22,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -55,7 +56,6 @@ import com.google.android.exoplayer2.source.smoothstreaming.DefaultSsChunkSource
 import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
 import com.google.android.exoplayer2.trackselection.AdaptiveVideoTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
-import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedTrackInfo;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
@@ -111,7 +111,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
 
   private DataSource.Factory mediaDataSourceFactory;
   private SimpleExoPlayer player;
-  private MappingTrackSelector trackSelector;
+  private DefaultTrackSelector trackSelector;
   private TrackSelectionHelper trackSelectionHelper;
   private DebugTextViewHelper debugViewHelper;
   private boolean playerNeedsSource;
@@ -195,6 +195,16 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
       showToast(R.string.storage_permission_denied);
       finish();
     }
+  }
+
+  // Activity input
+
+  @Override
+  public boolean dispatchKeyEvent(KeyEvent event) {
+    // Show the controls on any key event.
+    simpleExoPlayerView.showController();
+    // If the event was not handled then see if the player view can handle it as a media key event.
+    return super.dispatchKeyEvent(event) || simpleExoPlayerView.dispatchMediaKeyEvent(event);
   }
 
   // OnClickListener methods

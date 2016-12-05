@@ -47,6 +47,8 @@ public final class MimeTypes {
   public static final String AUDIO_MPEG_L1 = BASE_TYPE_AUDIO + "/mpeg-L1";
   public static final String AUDIO_MPEG_L2 = BASE_TYPE_AUDIO + "/mpeg-L2";
   public static final String AUDIO_RAW = BASE_TYPE_AUDIO + "/raw";
+  public static final String AUDIO_ALAW = BASE_TYPE_AUDIO + "/g711-alaw";
+  public static final String AUDIO_ULAW = BASE_TYPE_AUDIO + "/g711-mlaw";
   public static final String AUDIO_AC3 = BASE_TYPE_AUDIO + "/ac3";
   public static final String AUDIO_E_AC3 = BASE_TYPE_AUDIO + "/eac3";
   public static final String AUDIO_TRUEHD = BASE_TYPE_AUDIO + "/true-hd";
@@ -70,7 +72,8 @@ public final class MimeTypes {
   public static final String APPLICATION_TTML = BASE_TYPE_APPLICATION + "/ttml+xml";
   public static final String APPLICATION_M3U8 = BASE_TYPE_APPLICATION + "/x-mpegURL";
   public static final String APPLICATION_TX3G = BASE_TYPE_APPLICATION + "/x-quicktime-tx3g";
-  public static final String APPLICATION_MP4VTT = BASE_TYPE_APPLICATION + "/x-mp4vtt";
+  public static final String APPLICATION_MP4VTT = BASE_TYPE_APPLICATION + "/x-mp4-vtt";
+  public static final String APPLICATION_MP4CEA608 = BASE_TYPE_APPLICATION + "/x-mp4-cea-608";
   public static final String APPLICATION_RAWCC = BASE_TYPE_APPLICATION + "/x-rawcc";
   public static final String APPLICATION_VOBSUB = BASE_TYPE_APPLICATION + "/vobsub";
   public static final String APPLICATION_PGS = BASE_TYPE_APPLICATION + "/pgs";

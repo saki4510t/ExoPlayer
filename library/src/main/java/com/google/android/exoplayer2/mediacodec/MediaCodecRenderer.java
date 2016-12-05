@@ -472,6 +472,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
 
   @Override
   public void render(long positionUs, long elapsedRealtimeUs) throws ExoPlaybackException {
+    if (outputStreamEnded) {
+      return;
+    }
     if (format == null) {
       readFormat();
     }
@@ -529,10 +532,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    * @throws ExoPlaybackException If an error occurs feeding the input buffer.
    */
   private boolean feedInputBuffer() throws ExoPlaybackException {
-    if (inputStreamEnded
-        || codecReinitializationState == REINITIALIZATION_STATE_WAIT_END_OF_STREAM) {
-      // The input stream has ended, or we need to re-initialize the codec but are still waiting
-      // for the existing codec to output any final output buffers.
+    if (codec == null || codecReinitializationState == REINITIALIZATION_STATE_WAIT_END_OF_STREAM
+        || inputStreamEnded) {
+      // We need to reinitialize the codec or the input stream has ended.
       return false;
     }
 
@@ -846,10 +848,6 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
   @SuppressWarnings("deprecation")
   private boolean drainOutputBuffer(long positionUs, long elapsedRealtimeUs)
       throws ExoPlaybackException {
-    if (outputStreamEnded) {
-      return false;
-    }
-
     if (outputIndex < 0) {
       outputIndex = codec.dequeueOutputBuffer(outputBufferInfo, getDequeueOutputBufferTimeoutUs());
       if (outputIndex >= 0) {
@@ -864,7 +862,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
           // The dequeued buffer indicates the end of the stream. Process it immediately.
           processEndOfStream();
           outputIndex = C.INDEX_UNSET;
-          return true;
+          return false;
         } else {
           // The dequeued buffer is a media buffer. Do some initial setup. The buffer will be
           // processed by calling processOutputBuffer (possibly multiple times) below.
@@ -885,7 +883,6 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         if (codecNeedsEosPropagationWorkaround && (inputStreamEnded
             || codecReinitializationState == REINITIALIZATION_STATE_WAIT_END_OF_STREAM)) {
           processEndOfStream();
-          return true;
         }
         return false;
       }
@@ -1070,7 +1067,10 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    *     buffer with {@link MediaCodec#BUFFER_FLAG_END_OF_STREAM} set. False otherwise.
    */
   private static boolean codecNeedsEosFlushWorkaround(String name) {
-    return Util.SDK_INT <= 23 && "OMX.google.vorbis.decoder".equals(name);
+    return (Util.SDK_INT <= 23 && "OMX.google.vorbis.decoder".equals(name))
+        || (Util.SDK_INT <= 19 && "hb2000".equals(Util.DEVICE)
+            && ("OMX.amlogic.avc.decoder.awesome".equals(name)
+                || "OMX.amlogic.avc.decoder.awesome.secure".equals(name)));
   }
 
   /**
