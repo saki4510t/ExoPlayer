@@ -16,6 +16,8 @@
 package com.google.android.exoplayer2.demo;
 
 import android.app.Application;
+
+import com.google.android.exoplayer2.ext.okhttp.OkHttpDataSourceFactory;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
@@ -23,17 +25,21 @@ import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.util.Util;
 
+import okhttp3.OkHttpClient;
+
 /**
  * Placeholder application to facilitate overriding Application methods for debugging and testing.
  */
 public class DemoApplication extends Application {
 
   protected String userAgent;
+  protected OkHttpClient mOkHttpClient;
 
   @Override
   public void onCreate() {
     super.onCreate();
     userAgent = Util.getUserAgent(this, "ExoPlayerDemo");
+    mOkHttpClient = new OkHttpClient.Builder().build();
   }
 
   public DataSource.Factory buildDataSourceFactory(DefaultBandwidthMeter bandwidthMeter) {
@@ -42,7 +48,8 @@ public class DemoApplication extends Application {
   }
 
   public HttpDataSource.Factory buildHttpDataSourceFactory(DefaultBandwidthMeter bandwidthMeter) {
-    return new DefaultHttpDataSourceFactory(userAgent, bandwidthMeter);
+//  return new DefaultHttpDataSourceFactory(userAgent, bandwidthMeter);
+    return new OkHttpDataSourceFactory(mOkHttpClient, userAgent, bandwidthMeter);
   }
 
   public boolean useExtensionRenderers() {

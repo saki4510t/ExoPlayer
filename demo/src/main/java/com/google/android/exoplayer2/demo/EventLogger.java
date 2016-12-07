@@ -343,7 +343,7 @@ import java.util.Locale;
   // Internal methods
 
   private void printInternalError(String type, Exception e) {
-    Log.e(TAG, "internalError [" + getSessionTimeString() + ", " + type + "]", e);
+    Log.e(TAG, "internalError [" + getSessionTimeString() + ", " + type + "]\n" + e);
   }
 
   private void printMetadata(Metadata metadata, String prefix) {

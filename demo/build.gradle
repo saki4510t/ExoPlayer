@@ -46,6 +46,7 @@ android {
 
 dependencies {
     compile project(':library')
+    compile project(path: ':extension-okhttp')
     withExtensionsCompile project(path: ':extension-ffmpeg')
     withExtensionsCompile project(path: ':extension-flac')
     withExtensionsCompile project(path: ':extension-opus')
