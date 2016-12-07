@@ -15,9 +15,12 @@
  */
 package com.google.android.exoplayer2.ui;
 
+import android.animation.Animator;
+import android.animation.ObjectAnimator;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.os.Build;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
@@ -387,11 +390,20 @@ public class PlaybackControlView extends FrameLayout {
     }
   }
 
+  public void show() {
+    internalShow();
+    fadeIn(this, -1, 0);
+  }
+
+  public void hide() {
+    fadeOut(this, -1, 0);
+  }
+
   /**
    * Shows the playback controls. If {@link #getShowTimeoutMs()} is positive then the controls will
    * be automatically hidden after this duration of time has elapsed without user input.
    */
-  public void show() {
+  protected void internalShow() {
     if (!isVisible()) {
       setVisibility(VISIBLE);
       if (visibilityListener != null) {
@@ -407,7 +419,7 @@ public class PlaybackControlView extends FrameLayout {
   /**
    * Hides the controller.
    */
-  public void hide() {
+  protected void internalHide() {
     if (isVisible()) {
       setVisibility(GONE);
       if (visibilityListener != null) {
@@ -798,6 +810,110 @@ public class PlaybackControlView extends FrameLayout {
       hideAfterTimeout();
     }
 
+  }
+
+  private static final long DEFAULT_DURATION_MS = 500L;
+  private static final int ANIMATION_FADE_OUT = 0;
+  private static final int ANIMATION_FADE_IN = 1;
+
+  public static void fadeIn(final View target, final long duration, final long startDelay) {
+ 	if (target == null) return;
+    target.setVisibility(View.VISIBLE);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+  	  target.setTag(R.id.anim_type, ANIMATION_FADE_IN);	// フェードインの時の印
+      target.setScaleX(1.0f);
+      target.setScaleY(1.0f);
+      target.setAlpha(0.0f);
+      final ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(target, "alpha", 0f, 1f );
+      objectAnimator.addListener(mAnimatorListener);
+      if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2)
+        objectAnimator.setAutoCancel(true);		// API >= 18 同じターゲットに対して別のAnimatorが開始したら自分をキャンセルする
+      objectAnimator.setDuration(duration > 0 ? duration : DEFAULT_DURATION_MS);
+      objectAnimator.setStartDelay(startDelay > 0 ? startDelay : 0);	// 開始までの時間
+      objectAnimator.start();						// アニメーションを開始
+    }
+ }
+
+ /**
+  * アルファ値を1→0まで変化(Viewをフェードアウト)させる
+  * @param target
+  * @param duration 0以下ならデフォルト値(0.5秒)
+  * @param startDelay
+  */
+ public static void fadeOut(final View target, final long duration, final long startDelay) {
+    if (target == null) return;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+      if (target.getVisibility() == View.VISIBLE) {
+        target.setTag(R.id.anim_type, ANIMATION_FADE_OUT);	// フェードアウトの印
+        target.setScaleX(1.0f);
+        target.setScaleY(1.0f);
+        target.setAlpha(1.0f);
+        final ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(target, "alpha", 1f, 0f );
+        objectAnimator.addListener(mAnimatorListener);
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2)
+          objectAnimator.setAutoCancel(true);		// API >= 18 同じターゲットに対して別のAnimatorが開始したら自分をキャンセルする
+        objectAnimator.setDuration(duration > 0 ? duration : DEFAULT_DURATION_MS);
+        objectAnimator.setStartDelay(startDelay > 0 ? startDelay : 0);	// 開始までの時間
+        objectAnimator.start();						// アニメーションを開始
+      }
+    } else {
+      target.setVisibility(View.INVISIBLE);
+    }
+  }
+
+  @TargetApi(11)
+  private static class MyAnimatorListener  implements Animator.AnimatorListener {
+    @Override
+    public void onAnimationStart(final Animator animator) {
+      onAnimation(animator, 0);
+  	}
+    @Override
+    public void onAnimationEnd(final Animator animator) {
+      onAnimation(animator, 1);
+    }
+    @Override
+    public void onAnimationCancel(final Animator animator) {
+      onAnimation(animator, 2);
+    }
+    @Override
+    public void onAnimationRepeat(final Animator animation) {
+    }
+  }
+
+  /**
+  * アニメーション用コールバックリスナー
+  */
+  private static final MyAnimatorListener mAnimatorListener = new MyAnimatorListener();
+
+  @TargetApi(11)
+  private static void onAnimation(final Animator animator, final int event) {
+    if (animator instanceof ObjectAnimator) {
+      final ObjectAnimator anim = (ObjectAnimator)animator;
+      final View target = (View)anim.getTarget();
+      if (target == null) return;	// これはありえないはずだけど
+
+      int animType = -1;
+      try {
+        animType = (Integer)target.getTag(R.id.anim_type);
+      } catch (final Exception e) {
+      }
+      switch (event) {
+        case 0: // start
+          break;
+        case 1: // end
+        case 2: // cancel
+          if (target instanceof PlaybackControlView) {
+            switch (animType) {
+            case ANIMATION_FADE_IN:
+              break;
+            case ANIMATION_FADE_OUT:
+              ((PlaybackControlView) target).internalHide();
+              break;
+            }
+          }
+          break;
+        }
+ 	}
   }
 
 }
