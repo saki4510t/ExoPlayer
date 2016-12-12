@@ -580,7 +580,7 @@ public class PlaybackControlView extends FrameLayout {
   }
 
   private String stringForSpeedFactor(final int progress) {
-    return String.format(Locale.US, "%4.3f",
+    return String.format(Locale.US, "%3.1f",
       ((float)Math.pow(2.0, progress / 25.0f) / 8.0f));
   }
 
