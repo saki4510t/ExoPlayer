@@ -44,6 +44,7 @@ import com.google.android.exoplayer2.text.TextRenderer;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout.ResizeMode;
+import com.google.android.exoplayer2.ui.PlaybackControlView.SeekDispatcher;
 import com.google.android.exoplayer2.util.Assertions;
 import java.util.List;
 
@@ -62,6 +63,13 @@ import java.util.List;
  *       <ul>
  *         <li>Corresponding method: {@link #setUseArtwork(boolean)}</li>
  *         <li>Default: {@code true}</li>
+ *       </ul>
+ *   </li>
+ *   <li><b>{@code default_artwork}</b> - Default artwork to use if no artwork available in audio
+ *       streams.
+ *       <ul>
+ *         <li>Corresponding method: {@link #setDefaultArtwork(Bitmap)}</li>
+ *         <li>Default: {@code null}</li>
  *       </ul>
  *   </li>
  *   <li><b>{@code use_controller}</b> - Whether playback controls are displayed.
@@ -178,6 +186,7 @@ public final class SimpleExoPlayerView extends FrameLayout {
   private SimpleExoPlayer player;
   private boolean useController;
   private boolean useArtwork;
+  private Bitmap defaultArtwork;
   private int controllerShowTimeoutMs;
 
   public SimpleExoPlayerView(Context context) {
@@ -193,6 +202,7 @@ public final class SimpleExoPlayerView extends FrameLayout {
 
     int playerLayoutId = R.layout.exo_simple_player_view;
     boolean useArtwork = true;
+    int defaultArtworkId = 0;
     boolean useController = true;
     boolean useSpeedFactor = true;
     int surfaceType = SURFACE_TYPE_SURFACE_VIEW;
@@ -205,6 +215,8 @@ public final class SimpleExoPlayerView extends FrameLayout {
         playerLayoutId = a.getResourceId(R.styleable.SimpleExoPlayerView_player_layout_id,
             playerLayoutId);
         useArtwork = a.getBoolean(R.styleable.SimpleExoPlayerView_use_artwork, useArtwork);
+        defaultArtworkId = a.getResourceId(R.styleable.SimpleExoPlayerView_default_artwork,
+            defaultArtworkId);
         useController = a.getBoolean(R.styleable.SimpleExoPlayerView_use_controller, useController);
         useSpeedFactor = a.getBoolean(R.styleable.SimpleExoPlayerView_use_speed_factor, useSpeedFactor);
         surfaceType = a.getInt(R.styleable.SimpleExoPlayerView_surface_type, surfaceType);
@@ -247,6 +259,9 @@ public final class SimpleExoPlayerView extends FrameLayout {
     // Artwork view.
     artworkView = (ImageView) findViewById(R.id.exo_artwork);
     this.useArtwork = useArtwork && artworkView != null;
+    if (defaultArtworkId != 0) {
+      defaultArtwork = BitmapFactory.decodeResource(context.getResources(), defaultArtworkId);
+    }
 
     // Subtitle view.
     subtitleView = (SubtitleView) findViewById(R.id.exo_subtitles);
@@ -354,6 +369,26 @@ public final class SimpleExoPlayerView extends FrameLayout {
   }
 
   /**
+   * Returns the default artwork to display.
+   */
+  public Bitmap getDefaultArtwork() {
+    return defaultArtwork;
+  }
+
+  /**
+   * Sets the default artwork to display if {@code useArtwork} is {@code true} and no artwork is
+   * present in the media.
+   *
+   * @param defaultArtwork the default artwork to display.
+   */
+  public void setDefaultArtwork(Bitmap defaultArtwork) {
+    if (this.defaultArtwork != defaultArtwork) {
+      this.defaultArtwork = defaultArtwork;
+      updateForCurrentTrackSelections();
+    }
+  }
+
+  /**
    * Returns whether the playback controls are enabled.
    */
   public boolean getUseController() {
@@ -401,6 +436,15 @@ public final class SimpleExoPlayerView extends FrameLayout {
   }
 
   /**
+   * Hides the playback controls. Does nothing if playback controls are disabled.
+   */
+  public void hideController() {
+    if (controller != null) {
+      controller.hide();
+    }
+  }
+
+  /**
    * Returns the playback controls timeout. The playback controls are automatically hidden after
    * this duration of time has elapsed without user input and with playback or buffering in
    * progress.
@@ -432,6 +476,17 @@ public final class SimpleExoPlayerView extends FrameLayout {
   public void setControllerVisibilityListener(PlaybackControlView.VisibilityListener listener) {
     Assertions.checkState(controller != null);
     controller.setVisibilityListener(listener);
+  }
+
+  /**
+   * Sets the {@link SeekDispatcher}.
+   *
+   * @param seekDispatcher The {@link SeekDispatcher}, or null to use
+   *     {@link PlaybackControlView#DEFAULT_SEEK_DISPATCHER}.
+   */
+  public void setSeekDispatcher(SeekDispatcher seekDispatcher) {
+    Assertions.checkState(controller != null);
+    controller.setSeekDispatcher(seekDispatcher);
   }
 
   /**
@@ -551,6 +606,9 @@ public final class SimpleExoPlayerView extends FrameLayout {
           }
         }
       }
+      if (setArtworkFromBitmap(defaultArtwork)) {
+        return;
+      }
     }
     // Artwork disabled or unavailable.
     hideArtwork();
@@ -562,18 +620,23 @@ public final class SimpleExoPlayerView extends FrameLayout {
       if (metadataEntry instanceof ApicFrame) {
         byte[] bitmapData = ((ApicFrame) metadataEntry).pictureData;
         Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapData, 0, bitmapData.length);
-        if (bitmap != null) {
-          int bitmapWidth = bitmap.getWidth();
-          int bitmapHeight = bitmap.getHeight();
-          if (bitmapWidth > 0 && bitmapHeight > 0) {
-            if (contentFrame != null) {
-              contentFrame.setAspectRatio((float) bitmapWidth / bitmapHeight);
-            }
-            artworkView.setImageBitmap(bitmap);
-            artworkView.setVisibility(VISIBLE);
-            return true;
-          }
+        return setArtworkFromBitmap(bitmap);
+      }
+    }
+    return false;
+  }
+
+  private boolean setArtworkFromBitmap(Bitmap bitmap) {
+    if (bitmap != null) {
+      int bitmapWidth = bitmap.getWidth();
+      int bitmapHeight = bitmap.getHeight();
+      if (bitmapWidth > 0 && bitmapHeight > 0) {
+        if (contentFrame != null) {
+          contentFrame.setAspectRatio((float) bitmapWidth / bitmapHeight);
         }
+        artworkView.setImageBitmap(bitmap);
+        artworkView.setVisibility(VISIBLE);
+        return true;
       }
     }
     return false;
@@ -583,12 +646,6 @@ public final class SimpleExoPlayerView extends FrameLayout {
     if (artworkView != null) {
       artworkView.setImageResource(android.R.color.transparent); // Clears any bitmap reference.
       artworkView.setVisibility(INVISIBLE);
-    }
-  }
-
-  private void hideController() {
-    if (controller != null) {
-      controller.hide();
     }
   }
 

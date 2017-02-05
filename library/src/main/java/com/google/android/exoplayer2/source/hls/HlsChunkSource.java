@@ -19,7 +19,6 @@ import android.net.Uri;
 import android.os.SystemClock;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
-import com.google.android.exoplayer2.extractor.TimestampAdjuster;
 import com.google.android.exoplayer2.source.BehindLiveWindowException;
 import com.google.android.exoplayer2.source.TrackGroup;
 import com.google.android.exoplayer2.source.chunk.Chunk;
@@ -33,6 +32,7 @@ import com.google.android.exoplayer2.trackselection.BaseTrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DataSpec;
+import com.google.android.exoplayer2.util.TimestampAdjuster;
 import com.google.android.exoplayer2.util.UriUtil;
 import com.google.android.exoplayer2.util.Util;
 import java.io.IOException;
@@ -190,19 +190,20 @@ import java.util.Locale;
     // Use start time of the previous chunk rather than its end time because switching format will
     // require downloading overlapping segments.
     long bufferedDurationUs = previous == null ? 0
-        : Math.max(0, previous.getAdjustedStartTimeUs() - playbackPositionUs);
+        : Math.max(0, previous.startTimeUs - playbackPositionUs);
 
     // Select the variant.
     trackSelection.updateSelectedTrack(bufferedDurationUs);
-    int newVariantIndex = trackSelection.getSelectedIndexInTrackGroup();
+    int selectedVariantIndex = trackSelection.getSelectedIndexInTrackGroup();
 
-    boolean switchingVariant = oldVariantIndex != newVariantIndex;
-    HlsMediaPlaylist mediaPlaylist = playlistTracker.getPlaylistSnapshot(variants[newVariantIndex]);
-    if (mediaPlaylist == null) {
-      out.playlist = variants[newVariantIndex];
+    boolean switchingVariant = oldVariantIndex != selectedVariantIndex;
+    HlsUrl selectedUrl = variants[selectedVariantIndex];
+    if (!playlistTracker.isSnapshotValid(selectedUrl)) {
+      out.playlist = selectedUrl;
       // Retry when playlist is refreshed.
       return;
     }
+    HlsMediaPlaylist mediaPlaylist = playlistTracker.getPlaylistSnapshot(selectedUrl);
 
     // Select the chunk.
     int chunkMediaSequence;
@@ -218,8 +219,9 @@ import java.util.Locale;
         if (chunkMediaSequence < mediaPlaylist.mediaSequence && previous != null) {
           // We try getting the next chunk without adapting in case that's the reason for falling
           // behind the live window.
-          newVariantIndex = oldVariantIndex;
-          mediaPlaylist = playlistTracker.getPlaylistSnapshot(variants[newVariantIndex]);
+          selectedVariantIndex = oldVariantIndex;
+          selectedUrl = variants[selectedVariantIndex];
+          mediaPlaylist = playlistTracker.getPlaylistSnapshot(selectedUrl);
           chunkMediaSequence = previous.getNextChunkIndex();
         }
       }
@@ -236,7 +238,7 @@ import java.util.Locale;
       if (mediaPlaylist.hasEndTag) {
         out.endOfStream = true;
       } else /* Live */ {
-        out.playlist = variants[newVariantIndex];
+        out.playlist = selectedUrl;
       }
       return;
     }
@@ -249,7 +251,7 @@ import java.util.Locale;
       Uri keyUri = UriUtil.resolveToUri(mediaPlaylist.baseUri, segment.encryptionKeyUri);
       if (!keyUri.equals(encryptionKeyUri)) {
         // Encryption is specified and the key has changed.
-        out.chunk = newEncryptionKeyChunk(keyUri, segment.encryptionIV, newVariantIndex,
+        out.chunk = newEncryptionKeyChunk(keyUri, segment.encryptionIV, selectedVariantIndex,
             trackSelection.getSelectionReason(), trackSelection.getSelectionData());
         return;
       }
@@ -270,18 +272,19 @@ import java.util.Locale;
 
     // Compute start time of the next chunk.
     long startTimeUs = mediaPlaylist.startTimeUs + segment.relativeStartTimeUs;
+    int discontinuitySequence = mediaPlaylist.discontinuitySequence
+        + segment.relativeDiscontinuitySequence;
     TimestampAdjuster timestampAdjuster = timestampAdjusterProvider.getAdjuster(
-        segment.discontinuitySequenceNumber, startTimeUs);
+        discontinuitySequence, startTimeUs);
 
     // Configure the data source and spec for the chunk.
     Uri chunkUri = UriUtil.resolveToUri(mediaPlaylist.baseUri, segment.url);
     DataSpec dataSpec = new DataSpec(chunkUri, segment.byterangeOffset, segment.byterangeLength,
         null);
-    out.chunk = new HlsMediaChunk(dataSource, dataSpec, initDataSpec, variants[newVariantIndex],
+    out.chunk = new HlsMediaChunk(dataSource, dataSpec, initDataSpec, selectedUrl,
         trackSelection.getSelectionReason(), trackSelection.getSelectionData(),
-        startTimeUs, startTimeUs + segment.durationUs, chunkMediaSequence,
-        segment.discontinuitySequenceNumber, isTimestampMaster, timestampAdjuster, previous,
-        encryptionKey, encryptionIv);
+        startTimeUs, startTimeUs + segment.durationUs, chunkMediaSequence, discontinuitySequence,
+        isTimestampMaster, timestampAdjuster, previous, encryptionKey, encryptionIv);
   }
 
   /**
@@ -291,11 +294,7 @@ import java.util.Locale;
    * @param chunk The chunk whose load has been completed.
    */
   public void onChunkLoadCompleted(Chunk chunk) {
-    if (chunk instanceof HlsMediaChunk) {
-      HlsMediaChunk mediaChunk = (HlsMediaChunk) chunk;
-      playlistTracker.onChunkLoaded(mediaChunk.hlsUrl, mediaChunk.chunkIndex,
-          mediaChunk.getAdjustedStartTimeUs());
-    } else if (chunk instanceof EncryptionKeyChunk) {
+    if (chunk instanceof EncryptionKeyChunk) {
       EncryptionKeyChunk encryptionKeyChunk = (EncryptionKeyChunk) chunk;
       scratchSpace = encryptionKeyChunk.getDataHolder();
       setEncryptionData(encryptionKeyChunk.dataSpec.uri, encryptionKeyChunk.iv,
@@ -318,19 +317,19 @@ import java.util.Locale;
   }
 
   /**
-   * Called when an error is encountered while loading a playlist.
+   * Called when a playlist is blacklisted.
    *
-   * @param url The url that references the playlist whose load encountered the error.
-   * @param error The error.
+   * @param url The url that references the blacklisted playlist.
+   * @param blacklistMs The amount of milliseconds for which the playlist was blacklisted.
    */
-  public void onPlaylistLoadError(HlsUrl url, IOException error) {
+  public void onPlaylistBlacklisted(HlsUrl url, long blacklistMs) {
     int trackGroupIndex = trackGroup.indexOf(url.format);
-    if (trackGroupIndex == C.INDEX_UNSET) {
-      // The url is not handled by this chunk source.
-      return;
+    if (trackGroupIndex != C.INDEX_UNSET) {
+      int trackSelectionIndex = trackSelection.indexOf(trackGroupIndex);
+      if (trackSelectionIndex != C.INDEX_UNSET) {
+        trackSelection.blacklist(trackSelectionIndex, blacklistMs);
+      }
     }
-    ChunkedTrackBlacklistUtil.maybeBlacklistTrack(trackSelection,
-        trackSelection.indexOf(trackGroupIndex), error);
   }
 
   // Private methods.

@@ -120,8 +120,8 @@ public interface ExoPlayer {
      * removed from the timeline. The will <em>not</em> be reported via a separate call to
      * {@link #onPositionDiscontinuity()}.
      *
-     * @param timeline The latest timeline, or null if the timeline is being cleared.
-     * @param manifest The latest manifest, or null if the manifest is being cleared.
+     * @param timeline The latest timeline. Never null, but may be empty.
+     * @param manifest The latest manifest. May be null.
      */
     void onTimelineChanged(Timeline timeline, Object manifest);
 
@@ -330,17 +330,19 @@ public interface ExoPlayer {
   /**
    * Seeks to a position specified in milliseconds in the current window.
    *
-   * @param windowPositionMs The seek position in the current window.
+   * @param positionMs The seek position in the current window, or {@link C#TIME_UNSET} to seek to
+   *     the window's default position.
    */
-  void seekTo(long windowPositionMs);
+  void seekTo(long positionMs);
 
   /**
    * Seeks to a position specified in milliseconds in the specified window.
    *
    * @param windowIndex The index of the window.
-   * @param windowPositionMs The seek position in the specified window.
+   * @param positionMs The seek position in the specified window, or {@link C#TIME_UNSET} to seek to
+   *     the window's default position.
    */
-  void seekTo(int windowIndex, long windowPositionMs);
+  void seekTo(int windowIndex, long positionMs);
 
   /**
    * Stops playback. Use {@code setPlayWhenReady(false)} rather than this method if the intention
@@ -454,4 +456,20 @@ public interface ExoPlayer {
    * @param factor the speed factor: speed_of_playback / speed_of_real_clock
    */
   void setSpeedFactor(float factor);
+  /**
+   * Returns whether the current window is dynamic, or {@code false} if the {@link Timeline} is
+   * empty.
+   *
+   * @see Timeline.Window#isDynamic
+   */
+  boolean isCurrentWindowDynamic();
+
+  /**
+   * Returns whether the current window is seekable, or {@code false} if the {@link Timeline} is
+   * empty.
+   *
+   * @see Timeline.Window#isSeekable
+   */
+  boolean isCurrentWindowSeekable();
+
 }

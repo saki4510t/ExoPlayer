@@ -81,7 +81,8 @@ public final class MediaCodecUtil {
   /**
    * Optional call to warm the codec cache for a given mime type.
    * <p>
-   * Calling this method may speed up subsequent calls to {@link #getDecoderInfo(String, boolean)}.
+   * Calling this method may speed up subsequent calls to {@link #getDecoderInfo(String, boolean)}
+   * and {@link #getDecoderInfos(String, boolean)}.
    *
    * @param mimeType The mime type.
    * @param secure Whether the decoder is required to support secure decryption. Always pass false
@@ -178,11 +179,10 @@ public final class MediaCodecUtil {
                 boolean secure = mediaCodecList.isSecurePlaybackSupported(mimeType, capabilities);
                 if ((secureDecodersExplicit && key.secure == secure)
                     || (!secureDecodersExplicit && !key.secure)) {
-                  decoderInfos.add(
-                      MediaCodecInfo.newInstance(codecName, mimeType, capabilities));
+                  decoderInfos.add(MediaCodecInfo.newInstance(codecName, mimeType, capabilities));
                 } else if (!secureDecodersExplicit && secure) {
-                  decoderInfos.add(MediaCodecInfo.newInstance(codecName + ".secure",
-                      mimeType, capabilities));
+                  decoderInfos.add(MediaCodecInfo.newInstance(codecName + ".secure", mimeType,
+                      capabilities));
                   // It only makes sense to have one synthesized secure decoder, return immediately.
                   return decoderInfos;
                 }

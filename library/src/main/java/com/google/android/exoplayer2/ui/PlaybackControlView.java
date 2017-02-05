@@ -151,13 +151,44 @@ public class PlaybackControlView extends FrameLayout {
    * Listener to be notified about changes of the visibility of the UI control.
    */
   public interface VisibilityListener {
+
     /**
      * Called when the visibility changes.
      *
      * @param visibility The new visibility. Either {@link View#VISIBLE} or {@link View#GONE}.
      */
     void onVisibilityChange(int visibility);
+
   }
+
+  /**
+   * Dispatches seek operations to the player.
+   */
+  public interface SeekDispatcher {
+
+    /**
+     * @param player The player to seek.
+     * @param windowIndex The index of the window.
+     * @param positionMs The seek position in the specified window, or {@link C#TIME_UNSET} to seek
+     *     to the window's default position.
+     * @return True if the seek was dispatched. False otherwise.
+     */
+    boolean dispatchSeek(ExoPlayer player, int windowIndex, long positionMs);
+
+  }
+
+  /**
+   * Default {@link SeekDispatcher} that dispatches seeks to the player without modification.
+   */
+  public static final SeekDispatcher DEFAULT_SEEK_DISPATCHER = new SeekDispatcher() {
+
+    @Override
+    public boolean dispatchSeek(ExoPlayer player, int windowIndex, long positionMs) {
+      player.seekTo(windowIndex, positionMs);
+      return true;
+    }
+
+  };
 
   public static final int DEFAULT_FAST_FORWARD_MS = 15000;
   public static final int DEFAULT_REWIND_MS = 5000;
@@ -183,6 +214,7 @@ public class PlaybackControlView extends FrameLayout {
   private final Timeline.Window currentWindow;
 
   private ExoPlayer player;
+  private SeekDispatcher seekDispatcher;
   private VisibilityListener visibilityListener;
 
   private boolean isAttachedToWindow;
@@ -242,6 +274,7 @@ public class PlaybackControlView extends FrameLayout {
     formatBuilder = new StringBuilder();
     formatter = new Formatter(formatBuilder, Locale.getDefault());
     componentListener = new ComponentListener();
+    seekDispatcher = DEFAULT_SEEK_DISPATCHER;
 
     LayoutInflater.from(context).inflate(controllerLayoutId, this);
     setDescendantFocusability(FOCUS_AFTER_DESCENDANTS);
@@ -323,6 +356,16 @@ public class PlaybackControlView extends FrameLayout {
    */
   public void setVisibilityListener(VisibilityListener listener) {
     this.visibilityListener = listener;
+  }
+
+  /**
+   * Sets the {@link SeekDispatcher}.
+   *
+   * @param seekDispatcher The {@link SeekDispatcher}, or null to use
+   *     {@link #DEFAULT_SEEK_DISPATCHER}.
+   */
+  public void setSeekDispatcher(SeekDispatcher seekDispatcher) {
+    this.seekDispatcher = seekDispatcher == null ? DEFAULT_SEEK_DISPATCHER : seekDispatcher;
   }
 
   /**
@@ -604,9 +647,9 @@ public class PlaybackControlView extends FrameLayout {
     currentTimeline.getWindow(currentWindowIndex, currentWindow);
     if (currentWindowIndex > 0 && (player.getCurrentPosition() <= MAX_POSITION_FOR_SEEK_TO_PREVIOUS
         || (currentWindow.isDynamic && !currentWindow.isSeekable))) {
-      player.seekToDefaultPosition(currentWindowIndex - 1);
+      seekTo(currentWindowIndex - 1, C.TIME_UNSET);
     } else {
-      player.seekTo(0);
+      seekTo(0);
     }
   }
 
@@ -617,9 +660,9 @@ public class PlaybackControlView extends FrameLayout {
     }
     int currentWindowIndex = player.getCurrentWindowIndex();
     if (currentWindowIndex < currentTimeline.getWindowCount() - 1) {
-      player.seekToDefaultPosition(currentWindowIndex + 1);
+      seekTo(currentWindowIndex + 1, C.TIME_UNSET);
     } else if (currentTimeline.getWindow(currentWindowIndex, currentWindow, false).isDynamic) {
-      player.seekToDefaultPosition();
+      seekTo(currentWindowIndex, C.TIME_UNSET);
     }
   }
 
@@ -627,14 +670,27 @@ public class PlaybackControlView extends FrameLayout {
     if (rewindMs <= 0) {
       return;
     }
-    player.seekTo(Math.max(player.getCurrentPosition() - rewindMs, 0));
+    seekTo(Math.max(player.getCurrentPosition() - rewindMs, 0));
   }
 
   private void fastForward() {
     if (fastForwardMs <= 0) {
       return;
     }
-    player.seekTo(Math.min(player.getCurrentPosition() + fastForwardMs, player.getDuration()));
+    seekTo(Math.min(player.getCurrentPosition() + fastForwardMs, player.getDuration()));
+  }
+
+  private void seekTo(long positionMs) {
+    seekTo(player.getCurrentWindowIndex(), positionMs);
+  }
+
+  private void seekTo(int windowIndex, long positionMs) {
+    boolean dispatched = seekDispatcher.dispatchSeek(player, windowIndex, positionMs);
+    if (!dispatched) {
+      // The seek wasn't dispatched. If the progress bar was dragged by the user to perform the
+      // seek then it'll now be in the wrong position. Trigger a progress update to snap it back.
+      updateProgress();
+    }
   }
 
   @Override
@@ -735,8 +791,14 @@ public class PlaybackControlView extends FrameLayout {
     public void onProgressChanged(final SeekBar seekBar, final int progress, final boolean fromUser) {
       if (fromUser) {
         final int id = seekBar.getId();
-        if ((id == R.id.exo_progress) && (positionView != null)) {
-          positionView.setText(stringForTime(positionValue(progress)));
+        if (id == R.id.exo_progress) {
+          final long position = positionValue(progress);
+          if (positionView != null) {
+            positionView.setText(stringForTime(position));
+          }
+          if ((player != null) && !dragging) {
+            seekTo(position);
+          }
         } else if ((id == R.id.exo_speed_factor) && (speedFactorView != null)) {
           speedFactorView.setText(stringForSpeedFactor(progress));
         }

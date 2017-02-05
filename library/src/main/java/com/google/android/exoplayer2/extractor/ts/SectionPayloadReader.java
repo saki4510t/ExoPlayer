@@ -16,10 +16,10 @@
 package com.google.android.exoplayer2.extractor.ts;
 
 import com.google.android.exoplayer2.extractor.ExtractorOutput;
-import com.google.android.exoplayer2.extractor.TimestampAdjuster;
 import com.google.android.exoplayer2.extractor.TrackOutput;
 import com.google.android.exoplayer2.extractor.ts.TsPayloadReader.TrackIdGenerator;
 import com.google.android.exoplayer2.util.ParsableByteArray;
+import com.google.android.exoplayer2.util.TimestampAdjuster;
 
 /**
  * Reads section data.
@@ -40,8 +40,9 @@ public interface SectionPayloadReader {
   /**
    * Called by a {@link SectionReader} when a full section is received.
    *
-   * @param sectionData The data belonging to a section, including the section header but excluding
-   *     the CRC_32 field.
+   * @param sectionData The data belonging to a section starting from the table_id. If
+   *     section_syntax_indicator is set to '1', {@code sectionData} excludes the CRC_32 field.
+   *     Otherwise, all bytes belonging to the table section are included.
    */
   void consume(ParsableByteArray sectionData);
 

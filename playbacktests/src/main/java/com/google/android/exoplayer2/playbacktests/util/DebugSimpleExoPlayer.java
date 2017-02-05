@@ -19,6 +19,7 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Handler;
 import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.Renderer;
 import com.google.android.exoplayer2.SimpleExoPlayer;
@@ -49,7 +50,7 @@ public class DebugSimpleExoPlayer extends SimpleExoPlayer {
       @ExtensionRendererMode int extensionRendererMode, VideoRendererEventListener eventListener,
       long allowedVideoJoiningTimeMs, ArrayList<Renderer> out) {
     out.add(new DebugMediaCodecVideoRenderer(context, MediaCodecSelector.DEFAULT,
-        allowedVideoJoiningTimeMs, mainHandler, eventListener,
+        allowedVideoJoiningTimeMs, mainHandler, drmSessionManager, eventListener,
         MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY));
   }
 
@@ -66,14 +67,14 @@ public class DebugSimpleExoPlayer extends SimpleExoPlayer {
     private int startIndex;
     private int queueSize;
     private int bufferCount;
+    private int minimumInsertIndex;
 
     public DebugMediaCodecVideoRenderer(Context context, MediaCodecSelector mediaCodecSelector,
-        long allowedJoiningTimeMs, Handler eventHandler, VideoRendererEventListener eventListener,
-        int maxDroppedFrameCountToNotify) {
-      super(context, mediaCodecSelector, allowedJoiningTimeMs, null, false, eventHandler,
-          eventListener, maxDroppedFrameCountToNotify);
-      startIndex = 0;
-      queueSize = 0;
+        long allowedJoiningTimeMs, Handler eventHandler,
+        DrmSessionManager<FrameworkMediaCrypto> drmSessionManager,
+        VideoRendererEventListener eventListener, int maxDroppedFrameCountToNotify) {
+      super(context, mediaCodecSelector, allowedJoiningTimeMs, drmSessionManager, false,
+          eventHandler, eventListener, maxDroppedFrameCountToNotify);
     }
 
     @Override
@@ -86,6 +87,14 @@ public class DebugSimpleExoPlayer extends SimpleExoPlayer {
     protected void flushCodec() throws ExoPlaybackException {
       super.flushCodec();
       clearTimestamps();
+    }
+
+    @Override
+    protected void onInputFormatChanged(Format newFormat) throws ExoPlaybackException {
+      super.onInputFormatChanged(newFormat);
+      // Ensure timestamps of buffers queued after this format change are never inserted into the
+      // queue of expected output timestamps before those of buffers that have already been queued.
+      minimumInsertIndex = startIndex + queueSize;
     }
 
     @Override
@@ -109,10 +118,11 @@ public class DebugSimpleExoPlayer extends SimpleExoPlayer {
       startIndex = 0;
       queueSize = 0;
       bufferCount = 0;
+      minimumInsertIndex = 0;
     }
 
     private void insertTimestamp(long presentationTimeUs) {
-      for (int i = startIndex + queueSize - 1; i >= startIndex; i--) {
+      for (int i = startIndex + queueSize - 1; i >= minimumInsertIndex; i--) {
         if (presentationTimeUs >= timestampsList[i]) {
           timestampsList[i + 1] = presentationTimeUs;
           queueSize++;
@@ -120,20 +130,22 @@ public class DebugSimpleExoPlayer extends SimpleExoPlayer {
         }
         timestampsList[i + 1] = timestampsList[i];
       }
-      timestampsList[startIndex] = presentationTimeUs;
+      timestampsList[minimumInsertIndex] = presentationTimeUs;
       queueSize++;
     }
 
     private void maybeShiftTimestampsList() {
       if (startIndex + queueSize == ARRAY_SIZE) {
         System.arraycopy(timestampsList, startIndex, timestampsList, 0, queueSize);
+        minimumInsertIndex -= startIndex;
         startIndex = 0;
       }
     }
 
     private long dequeueTimestamp() {
-      startIndex++;
       queueSize--;
+      startIndex++;
+      minimumInsertIndex = Math.max(minimumInsertIndex, startIndex);
       return timestampsList[startIndex - 1];
     }
 
