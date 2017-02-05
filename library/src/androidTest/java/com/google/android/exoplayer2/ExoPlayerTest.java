@@ -141,6 +141,11 @@ public final class ExoPlayerTest extends TestCase {
       }
 
       @Override
+      public void setSpeedFactor(final float factor) {
+
+      }
+
+      @Override
       public boolean isEnded() {
         // Allow playback to end once the final period is playing.
         return playerWrapper.positionDiscontinuityCount == 2;
