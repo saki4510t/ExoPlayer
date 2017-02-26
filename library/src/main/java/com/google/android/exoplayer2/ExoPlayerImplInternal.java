@@ -1538,11 +1538,10 @@ import java.io.IOException;
       } catch (ExoPlaybackException e) {
         e.printStackTrace();
       }
-    } else {
-      standaloneMediaClock.setSpeedFactor(factor);
-      if (rendererMediaClock != null) {
-        rendererMediaClock.setSpeedFactor(factor);
-      }
+    }
+    standaloneMediaClock.setSpeedFactor(factor);
+    if (rendererMediaClock != null) {
+      rendererMediaClock.setSpeedFactor(factor);
     }
   }
 
