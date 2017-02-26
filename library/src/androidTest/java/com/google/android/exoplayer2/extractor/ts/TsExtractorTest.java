@@ -17,6 +17,7 @@ package com.google.android.exoplayer2.extractor.ts;
 
 import android.test.InstrumentationTestCase;
 import android.util.SparseArray;
+import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.extractor.Extractor;
 import com.google.android.exoplayer2.extractor.ExtractorOutput;
@@ -92,7 +93,7 @@ public final class TsExtractorTest extends InstrumentationTestCase {
     TrackOutput trackOutput = reader.getTrackOutput();
     assertTrue(trackOutput == output.trackOutputs.get(257 /* PID of audio track. */));
     assertEquals(
-        Format.createTextSampleFormat("Overriding format", "mime", null, 0, 0, "und", null, 0),
+        Format.createTextSampleFormat("1/257", "mime", null, 0, 0, "und", null, 0),
         ((FakeTrackOutput) trackOutput).format);
   }
 
@@ -178,8 +179,9 @@ public final class TsExtractorTest extends InstrumentationTestCase {
 
     @Override
     public void createTracks(ExtractorOutput extractorOutput, TrackIdGenerator idGenerator) {
-      output = extractorOutput.track(idGenerator.getNextId());
-      output.format(Format.createTextSampleFormat("Overriding format", "mime", null, 0, 0,
+      idGenerator.generateNewId();
+      output = extractorOutput.track(idGenerator.getTrackId(), C.TRACK_TYPE_UNKNOWN);
+      output.format(Format.createTextSampleFormat(idGenerator.getFormatId(), "mime", null, 0, 0,
           language, null, 0));
     }
 

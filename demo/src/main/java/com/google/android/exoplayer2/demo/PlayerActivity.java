@@ -70,8 +70,6 @@ import com.google.android.exoplayer2.util.Util;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -114,7 +112,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
   private DefaultTrackSelector trackSelector;
   private TrackSelectionHelper trackSelectionHelper;
   private DebugTextViewHelper debugViewHelper;
-  private boolean playerNeedsSource;
+  private boolean needRetrySource;
 
   private boolean shouldAutoPlay;
   private int resumeWindow;
@@ -233,7 +231,8 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
 
   private void initializePlayer() {
     Intent intent = getIntent();
-    if (player == null) {
+    boolean needNewPlayer = player == null;
+    if (needNewPlayer) {
       boolean preferExtensionDecoders = intent.getBooleanExtra(PREFER_EXTENSION_DECODERS, false);
       UUID drmSchemeUuid = intent.hasExtra(DRM_SCHEME_UUID_EXTRA)
           ? UUID.fromString(intent.getStringExtra(DRM_SCHEME_UUID_EXTRA)) : null;
@@ -241,19 +240,9 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
       if (drmSchemeUuid != null) {
         String drmLicenseUrl = intent.getStringExtra(DRM_LICENSE_URL);
         String[] keyRequestPropertiesArray = intent.getStringArrayExtra(DRM_KEY_REQUEST_PROPERTIES);
-        Map<String, String> keyRequestProperties;
-        if (keyRequestPropertiesArray == null || keyRequestPropertiesArray.length < 2) {
-          keyRequestProperties = null;
-        } else {
-          keyRequestProperties = new HashMap<>();
-          for (int i = 0; i < keyRequestPropertiesArray.length - 1; i += 2) {
-            keyRequestProperties.put(keyRequestPropertiesArray[i],
-                keyRequestPropertiesArray[i + 1]);
-          }
-        }
         try {
           drmSessionManager = buildDrmSessionManager(drmSchemeUuid, drmLicenseUrl,
-              keyRequestProperties);
+              keyRequestPropertiesArray);
         } catch (UnsupportedDrmException e) {
           int errorStringId = Util.SDK_INT < 18 ? R.string.error_drm_not_supported
               : (e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME
@@ -288,9 +277,8 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
       player.setPlayWhenReady(shouldAutoPlay);
       debugViewHelper = new DebugTextViewHelper(player, debugTextView);
       debugViewHelper.start();
-      playerNeedsSource = true;
     }
-    if (playerNeedsSource) {
+    if (needNewPlayer || needRetrySource) {
       String action = intent.getAction();
       Uri[] uris;
       String[] extensions;
@@ -326,7 +314,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
         player.seekTo(resumeWindow, resumePosition);
       }
       player.prepare(mediaSource, !haveResumePosition, false);
-      playerNeedsSource = false;
+      needRetrySource = false;
       updateButtonVisibilities();
     }
   }
@@ -353,12 +341,18 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
   }
 
   private DrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManager(UUID uuid,
-      String licenseUrl, Map<String, String> keyRequestProperties) throws UnsupportedDrmException {
+      String licenseUrl, String[] keyRequestPropertiesArray) throws UnsupportedDrmException {
     if (Util.SDK_INT < 18) {
       return null;
     }
     HttpMediaDrmCallback drmCallback = new HttpMediaDrmCallback(licenseUrl,
-        buildHttpDataSourceFactory(false), keyRequestProperties);
+        buildHttpDataSourceFactory(false));
+    if (keyRequestPropertiesArray != null) {
+      for (int i = 0; i < keyRequestPropertiesArray.length - 1; i += 2) {
+        drmCallback.setKeyRequestProperty(keyRequestPropertiesArray[i],
+            keyRequestPropertiesArray[i + 1]);
+      }
+    }
     return new DefaultDrmSessionManager<>(uuid,
         FrameworkMediaDrm.newInstance(uuid), drmCallback, null, mainHandler, eventLogger);
   }
@@ -429,7 +423,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
 
   @Override
   public void onPositionDiscontinuity() {
-    if (playerNeedsSource) {
+    if (needRetrySource) {
       // This will only occur if the user has performed a seek whilst in the error state. Update the
       // resume position so that if the user then retries, playback will resume from the position to
       // which they seeked.
@@ -470,7 +464,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
     if (errorString != null) {
       showToast(errorString);
     }
-    playerNeedsSource = true;
+    needRetrySource = true;
     if (isBehindLiveWindow(e)) {
       clearResumePosition();
       initializePlayer();
@@ -502,7 +496,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
   private void updateButtonVisibilities() {
     debugRootView.removeAllViews();
 
-    retryButton.setVisibility(playerNeedsSource ? View.VISIBLE : View.GONE);
+    retryButton.setVisibility(needRetrySource ? View.VISIBLE : View.GONE);
     debugRootView.addView(retryButton);
 
     if (player == null) {

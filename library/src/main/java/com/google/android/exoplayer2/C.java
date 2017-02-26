@@ -444,8 +444,15 @@ public final class C {
   public static final UUID UUID_NIL = new UUID(0L, 0L);
 
   /**
+   * UUID for the ClearKey DRM scheme.
+   * <p>
+   * ClearKey is supported on Android devices running Android 5.0 (API Level 21) and up.
+   */
+  public static final UUID CLEARKEY_UUID = new UUID(0x1077EFECC0B24D02L, 0xACE33C1E52E2FB4BL);
+
+  /**
    * UUID for the Widevine DRM scheme.
-   * <p></p>
+   * <p>
    * Widevine is supported on Android devices running Android 4.3 (API Level 18) and up.
    */
   public static final UUID WIDEVINE_UUID = new UUID(0xEDEF8BA979D64ACEL, 0xA3C827DCD51D21EDL);
@@ -515,7 +522,13 @@ public final class C {
    * The stereo mode for 360/3D/VR videos.
    */
   @Retention(RetentionPolicy.SOURCE)
-  @IntDef({Format.NO_VALUE, STEREO_MODE_MONO, STEREO_MODE_TOP_BOTTOM, STEREO_MODE_LEFT_RIGHT})
+  @IntDef({
+      Format.NO_VALUE,
+      STEREO_MODE_MONO,
+      STEREO_MODE_TOP_BOTTOM,
+      STEREO_MODE_LEFT_RIGHT,
+      STEREO_MODE_STEREO_MESH
+  })
   public @interface StereoMode {}
   /**
    * Indicates Monoscopic stereo layout, used with 360/3D/VR videos.
@@ -529,6 +542,11 @@ public final class C {
    * Indicates Left-Right stereo layout, used with 360/3D/VR videos.
    */
   public static final int STEREO_MODE_LEFT_RIGHT = 2;
+  /**
+   * Indicates a stereo layout where the left and right eyes have separate meshes,
+   * used with 360/3D/VR videos.
+   */
+  public static final int STEREO_MODE_STEREO_MESH = 3;
 
   /**
    * Converts a time in microseconds to the corresponding time in milliseconds, preserving
