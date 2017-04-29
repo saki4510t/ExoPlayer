@@ -688,8 +688,13 @@ public final class AudioTrack {
       // A new AC-3 audio track's playback position continues to increase from the old track's
       // position for a short time after is has been released. Avoid writing data until the playback
       // head position actually returns to zero.
-      if (audioTrack.getPlayState() == PLAYSTATE_STOPPED
-          && audioTrackUtil.getPlaybackHeadPosition() != 0) {
+      try {
+        if (audioTrack.getPlayState() == PLAYSTATE_STOPPED
+            && audioTrackUtil.getPlaybackHeadPosition() != 0) {
+          return false;
+        }
+      } catch (final Exception e) {
+        Log.w(TAG, e);
         return false;
       }
     }
@@ -812,8 +817,12 @@ public final class AudioTrack {
     int bytesWritten = 0;
     if (Util.SDK_INT < 21) { // passthrough == false
       // Work out how many bytes we can write without the risk of blocking.
-      int bytesPending =
-          (int) (writtenPcmBytes - (audioTrackUtil.getPlaybackHeadPosition() * outputPcmFrameSize));
+      int bytesPending = (int)writtenPcmBytes;
+      try {
+        bytesPending = (int) (writtenPcmBytes - (audioTrackUtil.getPlaybackHeadPosition() * outputPcmFrameSize));
+      } catch (final Exception e) {
+        Log.w(TAG, e);
+      }
       int bytesToWrite = bufferSize - bytesPending;
       if (bytesToWrite > 0) {
         bytesToWrite = Math.min(bytesRemaining, bytesToWrite);
@@ -865,9 +874,14 @@ public final class AudioTrack {
    * Returns whether the audio track has more data pending that will be played back.
    */
   public boolean hasPendingData() {
-    return isInitialized()
-        && (getWrittenFrames() > audioTrackUtil.getPlaybackHeadPosition()
-        || overrideHasPendingData());
+    try {
+      return isInitialized()
+          && (getWrittenFrames() > audioTrackUtil.getPlaybackHeadPosition()
+          || overrideHasPendingData());
+    } catch (final Exception e) {
+      return isInitialized()
+          || overrideHasPendingData();
+    }
   }
 
   /**
@@ -1413,13 +1427,13 @@ public final class AudioTrack {
         return Math.min(endPlaybackHeadPosition, stopPlaybackHeadPosition + framesSinceStop);
       }
 
-      int state = audioTrack != null ? audioTrack.getPlayState() : PLAYSTATE_STOPPED;
+      int state = audioTrack.getPlayState();
       if (state == PLAYSTATE_STOPPED) {
         // The audio track hasn't been started.
         return 0;
       }
 
-      long rawPlaybackHeadPosition = audioTrack != null ? (0xFFFFFFFFL & audioTrack.getPlaybackHeadPosition()) : 0;
+      long rawPlaybackHeadPosition = 0xFFFFFFFFL & audioTrack.getPlaybackHeadPosition();
       if (needsPassthroughWorkaround) {
         // Work around an issue with passthrough/direct AudioTracks on platform API versions 21/22
         // where the playback head position jumps back to zero on paused passthrough/direct audio
@@ -1441,7 +1455,12 @@ public final class AudioTrack {
      * Returns {@link #getPlaybackHeadPosition()} expressed as microseconds.
      */
     public long getPlaybackHeadPositionUs() {
-      return (getPlaybackHeadPosition() * C.MICROS_PER_SECOND) / sampleRate;
+      try {
+        return (getPlaybackHeadPosition() * C.MICROS_PER_SECOND) / sampleRate;
+      } catch (final Exception e) {
+        Log.w(TAG, e);
+      }
+      return 0L;
     }
 
     /**
