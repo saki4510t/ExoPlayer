@@ -1413,13 +1413,13 @@ public final class AudioTrack {
         return Math.min(endPlaybackHeadPosition, stopPlaybackHeadPosition + framesSinceStop);
       }
 
-      int state = audioTrack.getPlayState();
+      int state = audioTrack != null ? audioTrack.getPlayState() : PLAYSTATE_STOPPED;
       if (state == PLAYSTATE_STOPPED) {
         // The audio track hasn't been started.
         return 0;
       }
 
-      long rawPlaybackHeadPosition = 0xFFFFFFFFL & audioTrack.getPlaybackHeadPosition();
+      long rawPlaybackHeadPosition = audioTrack != null ? (0xFFFFFFFFL & audioTrack.getPlaybackHeadPosition()) : 0;
       if (needsPassthroughWorkaround) {
         // Work around an issue with passthrough/direct AudioTracks on platform API versions 21/22
         // where the playback head position jumps back to zero on paused passthrough/direct audio
