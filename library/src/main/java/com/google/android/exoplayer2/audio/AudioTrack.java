@@ -1583,10 +1583,8 @@ public final class AudioTrack {
   private static class AudioTrackUtilV23 extends AudioTrackUtilV19 {
 
     private PlaybackParams playbackParams;
-    private float playbackSpeed;
 
     public AudioTrackUtilV23() {
-      playbackSpeed = 1.0f;
     }
 
     @Override
@@ -1601,15 +1599,23 @@ public final class AudioTrack {
       playbackParams = (playbackParams != null ? playbackParams : new PlaybackParams())
           .allowDefaults();
       this.playbackParams = playbackParams;
-      playbackSpeed = playbackParams.getSpeed();
       maybeApplyPlaybackParams();
     }
 
     @Override
     public float getPlaybackSpeed() {
-      return playbackSpeed;
+      return playbackParams != null ? playbackParams.getSpeed() : super.getPlaybackSpeed();
     }
 
+    @Override
+    public void setPlaybackSpeed(final float playbackSpeed) {
+      super.setPlaybackSpeed(playbackSpeed);
+      playbackParams = (playbackParams != null ? playbackParams : new PlaybackParams())
+          .allowDefaults();
+      playbackParams.setSpeed(playbackSpeed);
+      maybeApplyPlaybackParams();
+    }
+    
     private void maybeApplyPlaybackParams() {
       if (audioTrack != null && playbackParams != null) {
         audioTrack.setPlaybackParams(playbackParams);

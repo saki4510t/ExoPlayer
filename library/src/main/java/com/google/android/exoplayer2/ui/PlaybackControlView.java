@@ -812,7 +812,7 @@ public class PlaybackControlView extends FrameLayout {
         final int id = seekBar.getId();
         if (id == R.id.exo_progress) {
           player.seekTo(positionValue(seekBar.getProgress()));
-        } else {
+        } else if (id == R.id.exo_speed_factor) {
           player.setSpeedFactor(((float)Math.pow(2.0, seekBar.getProgress() / 25.0f) / 8.0f));
         }
       }

@@ -1525,7 +1525,7 @@ import java.io.IOException;
     return standaloneMediaClock.getSpeedFactor();
   }
 
-  public void setSpeedFactor(float factor) {
+  public void setSpeedFactor(final float factor) {
     if (Build.VERSION.SDK_INT >= 23) {
       PlaybackParams params = new PlaybackParams();
       params.setSpeed(factor);
@@ -1540,9 +1540,14 @@ import java.io.IOException;
       }
     }
     standaloneMediaClock.setSpeedFactor(factor);
-    if (rendererMediaClock != null) {
-      rendererMediaClock.setSpeedFactor(factor);
-    }
+    handler.post(new Runnable() {
+      @Override
+      public void run() {
+        if (rendererMediaClock != null) {
+          rendererMediaClock.setSpeedFactor(factor);
+        }
+      }
+    });
   }
 
   private static final class SeekPosition {

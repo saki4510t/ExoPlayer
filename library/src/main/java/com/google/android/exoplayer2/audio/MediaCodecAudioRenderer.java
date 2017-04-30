@@ -21,6 +21,7 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.media.PlaybackParams;
 import android.media.audiofx.Virtualizer;
+import android.os.Build;
 import android.os.Handler;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlaybackException;
@@ -333,7 +334,9 @@ public class MediaCodecAudioRenderer extends MediaCodecRenderer implements Media
 
   @Override
   public void setSpeedFactor(final float speed) {
-    audioTrack.setPlaybackSpeed(speed);
+    if (Build.VERSION.SDK_INT < 23) {
+      audioTrack.setPlaybackSpeed(speed);
+    }
   }
 
   @Override
